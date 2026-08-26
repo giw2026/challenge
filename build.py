@@ -14,6 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SRC_PAGES = os.path.join(HERE, 'src', 'pages')
 MAPPING = os.path.join(HERE, 'src', 'mapping.json')
 GAMMA_PREFIX = 'https://assets.gammahosted.com/l6bos9u9r'
+BASE_MARKER = '.mirror-base'   # records the base currently baked into the _next chunks
 ORIGIN = 'https://giw2026.github.io'
 EMAIL = 'healthcareai.knih@gmail.com'
 ROUTES = ['/', '/대회-소개', '/데이터-일정', '/참가-안내', '/추진-배경']
@@ -22,6 +23,43 @@ PAGES = {'index.html': 'index.html',
          '데이터-일정.html': '데이터-일정/index.html',
          '참가-안내.html': '참가-안내/index.html',
          '추진-배경.html': '추진-배경/index.html'}
+
+def patch_chunks(out, base):
+    """Retarget the chunk base URL baked into the JavaScript bundles.
+
+    Turbopack's runtime hardcodes its chunk base as
+    `r="<prefix>/_next/"`, and ~300 more absolute chunk URLs are embedded in
+    the bundles. These live in JavaScript, not HTML, so rewriting the pages
+    alone leaves the runtime fetching chunks from Gamma's CDN: it then bails
+    out with a bare `return` -- no console error, no failed request -- and the
+    page renders as unhydrated, invisible markup.
+
+    The base in effect is recorded in .mirror-base so this is idempotent and
+    can be retargeted later. Tokens always include `/_next/` so an empty base
+    (a root deploy) never degenerates into an empty search string.
+    """
+    marker = os.path.join(out, BASE_MARKER)
+    # a fresh out_dir has no marker yet, but its chunks were copied from HERE,
+    # so fall back to HERE's marker before assuming pristine Gamma chunks
+    for cand in (marker, os.path.join(HERE, BASE_MARKER)):
+        if os.path.isfile(cand):
+            old = open(cand, encoding='utf-8').read().strip(); break
+    else:
+        old = GAMMA_PREFIX
+    old_tok, new_tok = (old + '/_next/').encode(), (base + '/_next/').encode()
+    n = 0
+    if old_tok != new_tok:
+        for dp, _, fs in os.walk(os.path.join(out, '_next')):
+            for fn in fs:
+                if not fn.endswith(('.js', '.css')): continue
+                p = os.path.join(dp, fn)
+                d = open(p, 'rb').read()
+                if old_tok not in d: continue
+                n += d.count(old_tok)
+                open(p, 'wb').write(d.replace(old_tok, new_tok))
+    open(marker, 'w', encoding='utf-8').write(base + '\n')
+    return n
+
 
 def build(out, base=''):
     base = base.rstrip('/')          # '' for a root deploy, '/challenge' for a subdirectory
@@ -64,10 +102,10 @@ def build(out, base=''):
         p = os.path.join(out, dst)
         os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, 'w', encoding='utf-8').write(t)
-    return base
+    return base, patch_chunks(out, base)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(__doc__)
-    b = build(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else '')
-    print(f'built {len(PAGES)} pages into {sys.argv[1]}  base={b or "/"}')
+    b, n = build(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else '')
+    print(f'built {len(PAGES)} pages into {sys.argv[1]}  base={b or "/"}  chunk-url rewrites: {n}')

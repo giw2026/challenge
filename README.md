@@ -26,12 +26,14 @@ assets/fonts/                   Inter (woff2) + stylesheet
 assets/screenshots/             social preview images
 .nojekyll                       required so _next/ is published
 build.py                        regenerates the pages for a given base path
+src/                            pristine Gamma HTML + URL map, for rebuilds
+.mirror-base                    base URL currently compiled into the chunks
 ```
 
 ## The base path
 
 This site is served from a subdirectory, so every internal reference carries a
-`/challenge` prefix. Three separate things need it, and all three are handled
+`/challenge` prefix. Four separate things need it, and all four are handled
 by `build.py`:
 
 1. `href`/`src`/`url()` references in the five pages.
@@ -46,6 +48,24 @@ by `build.py`:
 Next's own router fields (`page`, `query`) are deliberately left alone; they
 reference `/published/[docId]`, not the content routes.
 
+4. **The chunk base URL compiled into the JavaScript bundles.** This one is
+   invisible in the HTML and is the trap. Turbopack's runtime carries its own
+   hardcoded base, `r="<prefix>/_next/"`, and roughly 300 further absolute
+   chunk URLs are embedded across nine bundles. Rewriting only the pages
+   leaves the runtime resolving chunks against Gamma's CDN.
+
+   The failure mode is silent. The runtime begins with a bare
+   `if (!Array.isArray(globalThis.TURBOPACK)) return;`, so when its
+   expectations are not met it simply stops: no console error, no failed
+   request, every asset returning 200. React never hydrates, the
+   server-rendered ProseMirror markup is left in place unstyled, and the page
+   reads as blank. The tell is `document.body.className` being empty instead
+   of `chakra-ui-light`, and `#__next` still holding the full ~230 KB of
+   server markup rather than the ~50 KB React renders in its place.
+
+   `.mirror-base` records the base currently compiled into the bundles, so
+   `build.py` can retarget them and is safe to re-run.
+
 **The path is tied to the repository name.** GitHub Pages serves a project
 repo at `/<repo-name>/`, so renaming this repo changes the live URL and the
 build must be regenerated with the new base.
@@ -55,12 +75,19 @@ build must be regenerated with the new base.
 `build.py` regenerates the pages from pristine source HTML for any base path:
 
 ```sh
-python3 build.py <out_dir> /challenge   # subdirectory deploy
-python3 build.py <out_dir>              # root deploy
+python3 build.py . /challenge      # rebuild this repo in place
+python3 build.py ../out /other     # deploy under a different base
+python3 build.py ../out            # root deploy, no prefix
 ```
 
-It needs the original Gamma HTML in `pages/` and the URL map in
-`mapping.json`; the source HTML is never modified in place.
+Pages are regenerated from the pristine Gamma HTML in `src/pages/`, which is
+never modified in place; the URL map lives in `src/mapping.json`. Rebuilding
+also retargets the chunk base URLs described above.
+
+Verifying a rebuild means loading it in a real browser, not just checking for
+HTTP 200s: the failure this guards against produces no errors and no failed
+requests. Confirm `document.body.className` is `chakra-ui-light` and that
+`#__next` shrinks to roughly 50 KB.
 
 ## How this mirror was produced
 

@@ -1,0 +1,3 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,579812,t=>{"use strict";var e=t.i(189280);t.s(["loadLegacyVideoPlugins",0,function(i){return(0,e.__awaiter)(this,void 0,void 0,function(){return(0,e.__generator)(this,function(e){switch(e.label){case 0:return[4,t.A(118087)];case 1:return i._plugins=e.sent(),[2]}})})}])},118087,t=>{t.v(e=>Promise.all(["static/immutable/chunks/00sxkdw77l8fc.js"].map(e=>t.l(e))).then(()=>e(533340)))}]);
+
+//# sourceMappingURL=3vqe3ckbcrqou.js.map

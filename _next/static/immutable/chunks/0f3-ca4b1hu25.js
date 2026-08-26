@@ -1,0 +1,3 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,858277,t=>{t.q("/challenge/_next/static/immutable/media/ArrowRight.2pd96zq-8gz_1.svg")},104494,t=>{t.q("/challenge/_next/static/immutable/media/Parallelogram.22-wnvee8qyah.svg")},242066,t=>{t.q("/challenge/_next/static/immutable/media/StrokeIcon.1cxt6envcccf2.svg")}]);
+
+//# sourceMappingURL=1zk0nx6wvw9fg.js.map
