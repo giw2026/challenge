@@ -1,0 +1,51 @@
+name: Deploy site to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a newer deploy supersede one already in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Publish only what the site serves. src/ and build.py are kept in the
+      # repo for reproducible rebuilds but are not part of the deployed site.
+      - name: Stage site files
+        run: |
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='src' \
+            --exclude='build.py' \
+            --exclude='README.md' \
+            --exclude='.mirror-base' \
+            ./ _site/
+          echo "staged size: $(du -sh _site | cut -f1)"
+          echo "staged files: $(find _site -type f | wc -l)"
+          test -f _site/.nojekyll || { echo "::error::.nojekyll missing"; exit 1; }
+          test -f _site/index.html || { echo "::error::index.html missing"; exit 1; }
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
