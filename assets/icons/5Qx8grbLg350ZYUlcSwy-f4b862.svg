@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="-51.5 -51.5 1127.0 1127.0">
+  <g fill="none" stroke="black" stroke-width="45" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 1012.152,844.054 C 985.695,856.401 977.349,859.19 967.669,860.869 Q 948.431,861.516 852.388,861.584" data-line="nan"  stroke-width="45.0"/>
+    <path d="M 151.121,861.493 C 69.467,861.27 55.211,860.524 45.545,858.809 Q 37.122,855.768 10.688,841.694" data-line="nan"  stroke-width="45.0"/>
+    <path d="M 1014.178,182.488 Q 1019.484,215.197 1019.584,275.095" data-line="nan"  stroke-width="45.0"/>
+    <path d="M 1019.492,806.013 L 1012.152,844.054" data-line="nan"  stroke-width="45.0"/>
+    <path d="M 1012.569,181.621 C 985.086,167.132 980.284,165.336 970.701,163.539 L 855.59,162.582" data-line="nan"  stroke-width="45.0"/>
+    <path d="M 54.442,163.228 C 45.391,164.375 37.678,167.457 11.708,183.974" data-line="nan"  stroke-width="45.0"/>
+    <path d="M 577.591,545.392 C 560.727,558.273 538.247,570.882 528.926,574.106 C 521.227,575.74 512.35,576.452 502.224,575.995 C 487.414,572.489 471.005,564.715 456.647,554.904 L 425.25,528.984" data-line="nan"  stroke-width="45.0"/>
+    <path d="M 1012.569,181.621 L 577.591,545.392" data-line="0.0"  stroke-width="45.0"/>
+    <path d="M 1012.152,844.054 L 624.194,506.688" data-line="1.0"  stroke-width="45.0"/>
+    <path d="M 399.311,507.347 L 10.688,841.694" data-line="3.0"  stroke-width="45.0"/>
+    <path d="M 10.688,841.694 L 7.223,186.932" data-line="5.0"  stroke-width="45.0"/>
+    <path d="M 852.388,861.584 L 151.121,861.493" data-line="6.0"  stroke-width="45.0"/>
+    <path d="M 425.25,528.984 L 11.708,183.974" data-line="9.0"  stroke-width="45.0"/>
+    <path d="M 1019.584,275.095 L 1019.492,806.013" data-line="9.0"  stroke-width="45.0"/>
+    <path d="M 855.59,162.582 L 54.442,163.228" data-line="12.0"  stroke-width="45.0"/>
+  </g>
+</svg>
