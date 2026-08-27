@@ -10,10 +10,10 @@ Source site: <https://untitled-w5qr52y.gamma.site/> (Gamma)
 | Path | Title |
 | --- | --- |
 | `/challenge/` | KNIH-KSBi Joint Healthcare AI Challenge 2026 |
-| `/challenge/추진-배경/` | 추진 배경 |
-| `/challenge/대회-소개/` | 대회 소개 |
-| `/challenge/데이터-일정/` | 데이터 · 일정 |
-| `/challenge/참가-안내/` | 참가 안내 |
+| `/challenge/rationale/` | 추진 배경 |
+| `/challenge/overview/` | 대회 소개 |
+| `/challenge/data/` | 데이터 · 일정 |
+| `/challenge/apply/` | 참가 안내 |
 
 ## Layout
 
@@ -113,3 +113,8 @@ JavaScript fails to load.
   is now a direct `mailto:` link.
 - `<meta name="robots" content="noindex, nofollow">` was removed so the site
   can be indexed. Gamma adds it to every non-custom-domain site.
+- URLs are ASCII-only. The source site used Korean paths (`/대회-소개`); the
+  mirror publishes `/overview`, `/data`, `/apply` and `/rationale` instead,
+  which avoids percent-encoded links in email, print and QR codes. Page titles
+  and body copy are unchanged. The old Korean paths are not kept as redirects,
+  so any link to them breaks. `ROUTES` in `build.py` holds the mapping.

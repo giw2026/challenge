@@ -17,12 +17,20 @@ GAMMA_PREFIX = 'https://assets.gammahosted.com/l6bos9u9r'
 BASE_MARKER = '.mirror-base'   # records the base currently baked into the _next chunks
 ORIGIN = 'https://giw2026.github.io'
 EMAIL = 'healthcareai.knih@gmail.com'
-ROUTES = ['/', '/대회-소개', '/데이터-일정', '/참가-안내', '/추진-배경']
+# Source route as it appears in the pristine Gamma HTML -> ASCII slug it is
+# published under. The source site used Korean paths; the mirror serves
+# ASCII-only URLs. Page titles and body copy stay in Korean.
+ROUTES = {'/': '/',
+          '/대회-소개': '/overview',
+          '/데이터-일정': '/data',
+          '/참가-안내': '/apply',
+          '/추진-배경': '/rationale'}
+# Source file in src/pages/ -> published path
 PAGES = {'index.html': 'index.html',
-         '대회-소개.html': '대회-소개/index.html',
-         '데이터-일정.html': '데이터-일정/index.html',
-         '참가-안내.html': '참가-안내/index.html',
-         '추진-배경.html': '추진-배경/index.html'}
+         'overview.html': 'overview/index.html',
+         'data.html': 'data/index.html',
+         'apply.html': 'apply/index.html',
+         'rationale.html': 'rationale/index.html'}
 
 def patch_chunks(out, base):
     """Retarget the chunk base URL baked into the JavaScript bundles.
@@ -85,8 +93,8 @@ def build(out, base=''):
         for url, path in rules:                       # asset + runtime chunk URLs
             t = t.replace(url, path)
             t = t.replace(url.replace('/', r'\/'), path.replace('/', r'\/'))
-        for r in ROUTES:                              # nav links live in BOTH the server-rendered
-            tgt = base + r                            # markup and the __NEXT_DATA__ hydration
+        for r, slug in ROUTES.items():                # nav links live in BOTH the server-rendered
+            tgt = base + slug                         # markup and the __NEXT_DATA__ hydration
             t = t.replace(f'href="{r}"', f'href="{tgt}"')      # payload; rewrite both together
             t = t.replace(f'"path":"{r}"', f'"path":"{tgt}"')  # so hydration does not mismatch
         # social previews require absolute URLs
