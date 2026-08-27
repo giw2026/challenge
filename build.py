@@ -20,11 +20,15 @@ EMAIL = 'healthcareai.knih@gmail.com'
 # Source route as it appears in the pristine Gamma HTML -> ASCII slug it is
 # published under. The source site used Korean paths; the mirror serves
 # ASCII-only URLs. Page titles and body copy stay in Korean.
+# Slugs keep their trailing slash: each page is published as <slug>/index.html,
+# and GitHub Pages 301-redirects the slashless form, so linking without it costs
+# an extra round trip per navigation. It also keeps location.pathname equal to
+# the path recorded in the hydration payload.
 ROUTES = {'/': '/',
-          '/대회-소개': '/overview',
-          '/데이터-일정': '/data',
-          '/참가-안내': '/apply',
-          '/추진-배경': '/rationale'}
+          '/대회-소개': '/overview/',
+          '/데이터-일정': '/data/',
+          '/참가-안내': '/apply/',
+          '/추진-배경': '/rationale/'}
 # Source file in src/pages/ -> published path
 PAGES = {'index.html': 'index.html',
          'overview.html': 'overview/index.html',
