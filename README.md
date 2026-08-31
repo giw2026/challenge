@@ -27,7 +27,8 @@ assets/screenshots/             social preview images
 .nojekyll                       required so _next/ is published
 mirror.py                       re-harvests the Gamma source site
 build.py                        regenerates the pages for a given base path
-verify.py                       post-build checks
+verify.py                       post-build file checks
+browsercheck.py                 renders the build in headless Chromium
 MIRRORING.md                    the refresh procedure, start to finish
 src/                            pristine Gamma HTML + URL map, for rebuilds
 .mirror-base                    base URL currently compiled into the chunks
@@ -69,6 +70,21 @@ reference `/published/[docId]`, not the content routes.
    `.mirror-base` records the base currently compiled into the bundles, so
    `build.py` can retarget them and is safe to re-run.
 
+### Assets that must be absolute
+
+Icons are the exception to "everything is site-relative". Gamma recolours an
+SVG icon by fetching it and inlining it, and that code path starts with
+`new URL(src)` with no base argument, which throws on a root-relative URL. The
+throw is swallowed and the icon renders as an empty box, with no request and no
+console error to point at it. `ABSOLUTE` in `build.py` lists the prefixes that
+are therefore emitted as `ORIGIN + base + path`, which means **`ORIGIN` has to
+be right for icons to appear**, not just for social previews.
+
+A few asset URLs are also hardcoded in Gamma's JavaScript rather than the HTML
+-- the Inter stylesheet is injected as a `<link>` at runtime. `build.py` sweeps
+the mapping over the bundles to catch those; otherwise the deployed site would
+still fetch that stylesheet from Google.
+
 **The path is tied to the repository name.** GitHub Pages serves a project
 repo at `/<repo-name>/`, so renaming this repo changes the live URL and the
 build must be regenerated with the new base.
@@ -77,7 +93,7 @@ build must be regenerated with the new base.
 
 When the Gamma document is republished, follow **[MIRRORING.md](MIRRORING.md)**:
 `mirror.py --check` reports what moved, `mirror.py` re-harvests, `build.py`
-regenerates and `verify.py` checks the result. A republish rotates Gamma's
+regenerates, and `verify.py` plus `browsercheck.py` check the result. A republish rotates Gamma's
 frontend deploy id and re-renders every screenshot, so a refresh is always a
 full re-harvest rather than a patch.
 

@@ -44,6 +44,16 @@ def main(out, base):
                 bad.append(f'{dst}: social preview {m.group(1)} has no local file')
         if 'assets/screenshots/' in t and build.ORIGIN not in t:
             bad.append(f'{dst}: social preview URLs are not absolute')
+        # assets in build.ABSOLUTE must carry the origin: Gamma runs new URL() on
+        # them, which throws on a root-relative path and silently drops the asset
+        flat = t.replace(r'\/', '/')
+        for pfx in build.ABSOLUTE:
+            n_all, n_abs = flat.count(base + pfx), flat.count(build.ORIGIN + base + pfx)
+            if n_all != n_abs:
+                bad.append(f'{dst}: {n_all - n_abs} of {n_all} {pfx} references are not absolute')
+        for m in re.finditer(re.escape(build.ORIGIN + base) + r'(/assets/[A-Za-z0-9_./-]+)', flat):
+            if not os.path.isfile(os.path.join(out, m.group(1).lstrip('/'))):
+                bad.append(f'{dst}: absolute reference {m.group(1)} has no local file')
         # nothing may still point at Gamma or Google
         left = {u for u in REMOTE_RE.findall(t.replace(r'\/', '/'))}
         if left:

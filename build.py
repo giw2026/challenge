@@ -35,6 +35,14 @@ ROUTES = {'/':           ('/',           'index.html'),
 # home page's lower half and was deleted upstream on 2026-08-31; its slug stays
 # as a redirect stub so links already printed, emailed or QR-coded keep working.
 REDIRECTS = {'/apply/': '/'}
+# Assets that have to be referenced by absolute URL. Gamma recolours icons by
+# fetching the SVG and inlining it, and that path starts with `new URL(src)`
+# with no base argument, which throws on a root-relative URL. The throw is
+# swallowed, the icon is judged not to be an SVG, and the component renders an
+# empty box: no request, no console error, nothing to see in the served HTML.
+# Verified in Chromium -- an absolute URL restores the icons, a query string
+# makes no difference.
+ABSOLUTE = ('/assets/icons/',)
 # Source file in src/pages/ -> published path
 PAGES = {src: (slug.strip('/') + '/index.html' if slug != '/' else 'index.html')
          for slug, src in ROUTES.values()}
@@ -72,7 +80,7 @@ def gamma_prefix(mapping):
     sys.exit('src/mapping.json has no assets.gammahosted.com entry; re-run mirror.py')
 
 
-def patch_chunks(out, base, pristine):
+def patch_chunks(out, base, pristine, mapping):
     """Retarget the chunk base URL baked into the JavaScript bundles.
 
     Turbopack's runtime hardcodes its chunk base as
@@ -94,19 +102,40 @@ def patch_chunks(out, base, pristine):
             old = open(cand, encoding='utf-8').read().strip(); break
     else:
         old = pristine
-    old_tok, new_tok = (old + '/_next/').encode(), (base + '/_next/').encode()
+    # '/_next/' is the chunk base; '/assets/' catches URLs a previous run swept
+    # out of the bundles (below), which carry the base too and must move with it
+    toks = [((old + sfx).encode(), (base + sfx).encode()) for sfx in ('/_next/', '/assets/')]
+    toks = [(o, t) for o, t in toks if o != t]
     n = 0
-    if old_tok != new_tok:
+    if toks:
         for dp, _, fs in os.walk(os.path.join(out, '_next')):
             for fn in fs:
                 if not fn.endswith(('.js', '.css')): continue
                 p = os.path.join(dp, fn)
-                d = open(p, 'rb').read()
-                if old_tok not in d: continue
-                n += d.count(old_tok)
-                open(p, 'wb').write(d.replace(old_tok, new_tok))
+                d = d0 = open(p, 'rb').read()
+                for o, t in toks:
+                    n += d.count(o)
+                    d = d.replace(o, t)
+                if d != d0: open(p, 'wb').write(d)
+    # Gamma also hardcodes a few asset URLs in the bundles -- the Inter stylesheet
+    # is injected as a <link> by React at runtime, so it never appears in the
+    # served HTML and a page rewrite cannot reach it. Sweeping the mapping over
+    # the chunks catches those. It is naturally idempotent: once rewritten the
+    # source URL is gone.
+    swept = 0
+    hardcoded = [(u.encode(), (base + p).encode()) for u, p in mapping.items()]
+    for dp, _, fs in os.walk(os.path.join(out, '_next')):
+        for fn in fs:
+            if not fn.endswith(('.js', '.css')): continue
+            path = os.path.join(dp, fn)
+            d = d0 = open(path, 'rb').read()
+            for u, p in hardcoded:
+                if u in d:
+                    swept += d.count(u)
+                    d = d.replace(u, p)
+            if d != d0: open(path, 'wb').write(d)
     open(marker, 'w', encoding='utf-8').write(base + '\n')
-    return n
+    return n, swept
 
 
 def redirect_stub(target, canonical):
@@ -143,7 +172,8 @@ def build(out, base=''):
     pristine = gamma_prefix(mapping)
     # longest URL first: imgproxy URLs embed a cdn.gamma.app URL, and specific chunk
     # URLs must be replaced before the bare asset prefix they start with
-    rules = sorted(((u, base + p) for u, p in mapping.items()), key=lambda kv: -len(kv[0]))
+    rules = sorted(((u, (ORIGIN if p.startswith(ABSOLUTE) else '') + base + p)
+                    for u, p in mapping.items()), key=lambda kv: -len(kv[0]))
     # Next builds runtime chunk URLs as `${assetPrefix}/_next/...`, so the prefix carries the base
     rules.append((pristine, base))
 
@@ -183,11 +213,11 @@ def build(out, base=''):
         p = os.path.join(out, slug.strip('/'), 'index.html')
         os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, 'w', encoding='utf-8').write(redirect_stub(base + target, ORIGIN + base + target))
-    return base, patch_chunks(out, base, pristine)
+    return base, patch_chunks(out, base, pristine, mapping)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(__doc__)
-    b, n = build(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else '')
+    b, (n, swept) = build(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else '')
     print(f'built {len(PAGES)} pages + {len(REDIRECTS)} redirects into {sys.argv[1]}  '
-          f'base={b or "/"}  chunk-url rewrites: {n}')
+          f'base={b or "/"}  chunk-url rewrites: {n}  asset URLs swept from bundles: {swept}')

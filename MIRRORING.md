@@ -8,8 +8,8 @@ python3 mirror.py --check          # 1. what changed upstream?
 $EDITOR build.py                   # 2. only if routes were added or removed
 python3 mirror.py                  # 3. re-harvest
 python3 build.py . /challenge      # 4. regenerate the published pages
-python3 verify.py . /challenge     # 5a. automated checks
-                                   # 5b. load it in a browser (see below)
+python3 verify.py . /challenge     # 5a. file-level checks
+python3 browsercheck.py . /challenge   # 5b. render it and compare against the source
 git add -A && git commit && git push  # 6. deploy
 ```
 
@@ -116,18 +116,37 @@ or Google, that the nav links and hydration payload agree, that the redirect
 stubs land on a page that exists, and that the Turbopack runtime carries the
 right chunk base.
 
-**This is not sufficient.** The failure this mirror is most exposed to is
-silent: every asset returns 200, no console error appears, and the page renders
-as unhydrated markup. Load the built site in a real browser and confirm:
+**This is not sufficient**, because the failures that matter do not show up in
+the files. Two of them:
 
-- `document.body.className` is `chakra-ui-light`, not empty;
-- `document.getElementById('__next').innerHTML.length` is roughly 50 KB, not ~230 KB;
-- the nav works and the fonts look right;
-- `/challenge/apply/` bounces to the home page.
+- The page never hydrates. Every asset returns 200, nothing errors, and the
+  page reads as blank.
+- Content that only exists after hydration goes missing. Gamma recolours its
+  SVG icons by fetching them and inlining them, and that path begins with
+  `new URL(src)` with no base argument. A root-relative URL throws there, the
+  throw is swallowed, and the icon renders as an empty box -- no request, no
+  console error, nothing in the served HTML to look at. `build.ABSOLUTE` lists
+  the asset prefixes that must therefore carry the origin.
 
-Serving it locally is enough: `python3 -m http.server` from the repo root will
-not reproduce the `/challenge` prefix, so use a parent directory, or point the
-build at one: `python3 build.py /tmp/site && cd /tmp/site && python3 -m http.server`.
+```sh
+python3 browsercheck.py . /challenge
+```
+
+drives a headless Chromium: it rebuilds into a temp directory with `ORIGIN`
+pointed at its own local server, loads each page, scrolls to the bottom so
+lazily loaded images fire, and compares the result against the same page on the
+source site -- hydration, inline icon count, image count and page height. It
+takes about two minutes. `--skip-upstream` reports the numbers without
+comparing, for when the source site is unreachable.
+
+It finds a browser in `PATH` or in the Playwright/Puppeteer caches. With no
+browser available, check by hand instead: `document.body.className` should be
+`chakra-ui-light`, `document.getElementById('__next').innerHTML.length` roughly
+50 KB rather than ~230 KB, and `/challenge/apply/` should bounce to the home page.
+
+One request is expected to stay third-party: `cdn.iframe.ly/embed.js`, which
+Gamma loads for link-card embeds on the source site too. `/favicon.ico` 404s on
+both sites; Gamma does not ship one.
 
 ## 6. Deploy
 
@@ -140,7 +159,8 @@ root to GitHub Pages; there is no build step on the runner.
 | --- | --- |
 | `mirror.py` | harvests the Gamma source into `src/` + `_next/` + `assets/` |
 | `build.py` | route table, redirects, and page generation for a base path |
-| `verify.py` | post-build checks |
+| `verify.py` | post-build file checks |
+| `browsercheck.py` | renders the build and compares it against the source |
 | `src/pages/` | pristine Gamma HTML, never edited in place |
 | `src/mapping.json` | source asset URL -> path in the mirror |
 | `.mirror-base` | base currently compiled into the JS chunks |
