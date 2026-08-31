@@ -13,7 +13,7 @@ Source site: <https://untitled-w5qr52y.gamma.site/> (Gamma)
 | `/challenge/rationale/` | 추진 배경 |
 | `/challenge/overview/` | 대회 소개 |
 | `/challenge/data/` | 데이터 · 일정 |
-| `/challenge/apply/` | 참가 안내 |
+| `/challenge/apply/` | redirect to `/challenge/` (page removed upstream 2026-08-31) |
 
 ## Layout
 
@@ -22,10 +22,13 @@ index.html, <page>/index.html   server-rendered pages
 _next/                          Next.js CSS + JS chunks, KaTeX fonts
 assets/img/                     images
 assets/icons/                   inline SVG icons
-assets/fonts/                   Inter (woff2) + stylesheet
+assets/fonts/                   Inter + Barlow (woff2) + stylesheets
 assets/screenshots/             social preview images
 .nojekyll                       required so _next/ is published
+mirror.py                       re-harvests the Gamma source site
 build.py                        regenerates the pages for a given base path
+verify.py                       post-build checks
+MIRRORING.md                    the refresh procedure, start to finish
 src/                            pristine Gamma HTML + URL map, for rebuilds
 .mirror-base                    base URL currently compiled into the chunks
 ```
@@ -70,6 +73,14 @@ reference `/published/[docId]`, not the content routes.
 repo at `/<repo-name>/`, so renaming this repo changes the live URL and the
 build must be regenerated with the new base.
 
+## Refreshing from the source site
+
+When the Gamma document is republished, follow **[MIRRORING.md](MIRRORING.md)**:
+`mirror.py --check` reports what moved, `mirror.py` re-harvests, `build.py`
+regenerates and `verify.py` checks the result. A republish rotates Gamma's
+frontend deploy id and re-renders every screenshot, so a refresh is always a
+full re-harvest rather than a patch.
+
 ## Rebuilding
 
 `build.py` regenerates the pages from pristine source HTML for any base path:
@@ -91,15 +102,19 @@ requests. Confirm `document.body.className` is `chakra-ui-light` and that
 
 ## How this mirror was produced
 
-All assets were pulled from the Gamma CDNs and rewritten to site-relative
-paths, so the deployed site makes no runtime requests to Gamma:
+`mirror.py` pulls every asset from the Gamma CDNs and rewrites the references
+to site-relative paths, so the deployed site makes no runtime requests to Gamma
+or Google:
 
 - `assets.gammahosted.com/<id>/_next/*` to `/challenge/_next/*`
 - `cdn.gamma.app`, `imgproxy.gamma.app` to `/challenge/assets/img/`
 - `iconscdn.pictographic.ai` to `/challenge/assets/icons/`
 - `assets.api.gamma.app` to `/challenge/assets/screenshots/` (kept absolute in
   `og:image`/`twitter:image`, which require full URLs)
-- `fonts.googleapis.com` / `fonts.gstatic.com` to `/challenge/assets/fonts/`
+- `fonts.googleapis.com` / `fonts.gstatic.com` to `/challenge/assets/fonts/`,
+  with the stylesheets relinked to the woff2 files beside them
+- favicons and preview thumbnails of the sites the link cards point at, to
+  `/challenge/assets/img/ext-*` (best-effort: an unreachable one is left remote)
 
 Page content is server-rendered in the HTML, so the site renders even if
 JavaScript fails to load.
@@ -113,8 +128,13 @@ JavaScript fails to load.
   is now a direct `mailto:` link.
 - `<meta name="robots" content="noindex, nofollow">` was removed so the site
   can be indexed. Gamma adds it to every non-custom-domain site.
-- URLs are ASCII-only. The source site used Korean paths (`/대회-소개`); the
-  mirror publishes `/overview`, `/data`, `/apply` and `/rationale` instead,
-  which avoids percent-encoded links in email, print and QR codes. Page titles
-  and body copy are unchanged. The old Korean paths are not kept as redirects,
-  so any link to them breaks. `ROUTES` in `build.py` holds the mapping.
+- URLs are ASCII-only. The source site uses Korean paths (`/대회-소개`); the
+  mirror publishes `/overview`, `/data` and `/rationale` instead, which avoids
+  percent-encoded links in email, print and QR codes. Page titles and body copy
+  are unchanged. The old Korean paths are not kept as redirects, so any link to
+  them breaks. `ROUTES` in `build.py` holds the mapping.
+- Slugs outlive their source page. `/참가-안내` was deleted upstream on
+  2026-08-31 (it duplicated the lower half of the home page), but
+  `/challenge/apply/` is still served as a redirect stub, because the slug may
+  already be in print or behind a QR code and a static host cannot 301.
+  `REDIRECTS` in `build.py` holds these.

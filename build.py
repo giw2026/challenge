@@ -7,36 +7,72 @@
 Pages are always regenerated from the pristine Gamma HTML in src/pages/, which
 is never modified in place. Assets under _next/ and assets/ are content-only
 and need no rewriting, so they are reused as-is.
+
+Refreshing those pristine sources from the live Gamma site is mirror.py's job;
+the whole procedure is in MIRRORING.md.
 """
 import json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC_PAGES = os.path.join(HERE, 'src', 'pages')
 MAPPING = os.path.join(HERE, 'src', 'mapping.json')
-GAMMA_PREFIX = 'https://assets.gammahosted.com/l6bos9u9r'
 BASE_MARKER = '.mirror-base'   # records the base currently baked into the _next chunks
 ORIGIN = 'https://giw2026.github.io'
 EMAIL = 'healthcareai.knih@gmail.com'
-# Source route as it appears in the pristine Gamma HTML -> ASCII slug it is
-# published under. The source site used Korean paths; the mirror serves
-# ASCII-only URLs. Page titles and body copy stay in Korean.
+JSON_AMP = chr(92) + 'u0026'   # how '&' is spelled inside __NEXT_DATA__
+# Source route as it appears in the pristine Gamma HTML -> (ASCII slug it is
+# published under, its file in src/pages/). The source site uses Korean paths;
+# the mirror serves ASCII-only URLs. Page titles and body copy stay in Korean.
 # Slugs keep their trailing slash: each page is published as <slug>/index.html,
 # and GitHub Pages 301-redirects the slashless form, so linking without it costs
 # an extra round trip per navigation. It also keeps location.pathname equal to
 # the path recorded in the hydration payload.
-ROUTES = {'/': '/',
-          '/대회-소개': '/overview/',
-          '/데이터-일정': '/data/',
-          '/참가-안내': '/apply/',
-          '/추진-배경': '/rationale/'}
+ROUTES = {'/':           ('/',           'index.html'),
+          '/추진-배경':    ('/rationale/', 'rationale.html'),
+          '/대회-소개':    ('/overview/',  'overview.html'),
+          '/데이터-일정':  ('/data/',      'data.html')}
+# Slugs the source site no longer serves. `/참가-안내` was a duplicate of the
+# home page's lower half and was deleted upstream on 2026-08-31; its slug stays
+# as a redirect stub so links already printed, emailed or QR-coded keep working.
+REDIRECTS = {'/apply/': '/'}
 # Source file in src/pages/ -> published path
-PAGES = {'index.html': 'index.html',
-         'overview.html': 'overview/index.html',
-         'data.html': 'data/index.html',
-         'apply.html': 'apply/index.html',
-         'rationale.html': 'rationale/index.html'}
+PAGES = {src: (slug.strip('/') + '/index.html' if slug != '/' else 'index.html')
+         for slug, src in ROUTES.values()}
 
-def patch_chunks(out, base):
+
+def spellings(url, path):
+    """The same rewrite, in every spelling a served page can use.
+
+    Gamma writes each URL at least twice: once as an HTML attribute, where `&`
+    arrives as `&amp;`, and once inside the __NEXT_DATA__ JSON, where `/` and
+    `&` are each escaped or not independently of one another. Missing one
+    spelling leaves a live request to Gamma or Google in an otherwise complete
+    mirror, which nothing in the rendered page reveals.
+    """
+    out = []
+    for u, p in ((url, path), (url.replace('/', r'\/'), path.replace('/', r'\/'))):
+        out.append((u, p))
+        if '&' in u:
+            out.append((u.replace('&', JSON_AMP), p))
+    if '&' in url:
+        out.append((url.replace('&', '&amp;'), path))
+    return sorted(out, key=lambda kv: -len(kv[0]))
+
+
+def gamma_prefix(mapping):
+    """The Gamma frontend deploy the pristine pages were harvested from.
+
+    Gamma redeploys under a fresh id (assets.gammahosted.com/<id>), so this is
+    read back from the mapping rather than pinned in the source.
+    """
+    for u in mapping:
+        m = re.match(r'(https://assets\.gammahosted\.com/[^/]+)/_next/', u)
+        if m:
+            return m.group(1)
+    sys.exit('src/mapping.json has no assets.gammahosted.com entry; re-run mirror.py')
+
+
+def patch_chunks(out, base, pristine):
     """Retarget the chunk base URL baked into the JavaScript bundles.
 
     Turbopack's runtime hardcodes its chunk base as
@@ -57,7 +93,7 @@ def patch_chunks(out, base):
         if os.path.isfile(cand):
             old = open(cand, encoding='utf-8').read().strip(); break
     else:
-        old = GAMMA_PREFIX
+        old = pristine
     old_tok, new_tok = (old + '/_next/').encode(), (base + '/_next/').encode()
     n = 0
     if old_tok != new_tok:
@@ -73,15 +109,43 @@ def patch_chunks(out, base):
     return n
 
 
+def redirect_stub(target, canonical):
+    """A page for a slug the source site dropped.
+
+    GitHub Pages serves static files only, so a 301 is not available; a
+    meta refresh plus location.replace is the closest equivalent, and
+    replace() keeps the dead slug out of the back-button history.
+    """
+    return f'''<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>KNIH-KSBi Joint Healthcare AI Challenge 2026</title>
+<link rel="canonical" href="{canonical}"/>
+<meta http-equiv="refresh" content="0; url={target}"/>
+<meta name="robots" content="noindex, follow"/>
+<script>location.replace("{target}" + location.hash);</script>
+<style>body{{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:4rem auto;max-width:34rem;
+padding:0 1.5rem;line-height:1.7;color:#1a202c}}a{{color:#2b6cb0}}</style>
+</head>
+<body>
+<p>이 페이지는 <a href="{target}">참가 안내가 있는 홈</a>으로 옮겨졌습니다.</p>
+<p>자동으로 이동하지 않으면 위 링크를 눌러 주세요.</p>
+</body>
+</html>
+'''
+
+
 def build(out, base=''):
     base = base.rstrip('/')          # '' for a root deploy, '/challenge' for a subdirectory
-    mapping = {u: (p.replace('/assets/next/', '/_next/', 1) if p.startswith('/assets/next/') else p)
-               for u, p in json.load(open(MAPPING, encoding='utf-8')).items()}
+    mapping = json.load(open(MAPPING, encoding='utf-8'))
+    pristine = gamma_prefix(mapping)
     # longest URL first: imgproxy URLs embed a cdn.gamma.app URL, and specific chunk
     # URLs must be replaced before the bare asset prefix they start with
     rules = sorted(((u, base + p) for u, p in mapping.items()), key=lambda kv: -len(kv[0]))
     # Next builds runtime chunk URLs as `${assetPrefix}/_next/...`, so the prefix carries the base
-    rules.append((GAMMA_PREFIX, base))
+    rules.append((pristine, base))
 
     if os.path.abspath(out) != HERE:
         import shutil
@@ -95,9 +159,9 @@ def build(out, base=''):
     for src, dst in PAGES.items():
         t = open(os.path.join(SRC_PAGES, src), encoding='utf-8').read()
         for url, path in rules:                       # asset + runtime chunk URLs
-            t = t.replace(url, path)
-            t = t.replace(url.replace('/', r'\/'), path.replace('/', r'\/'))
-        for r, slug in ROUTES.items():                # nav links live in BOTH the server-rendered
+            for u, p in spellings(url, path):
+                t = t.replace(u, p)
+        for r, (slug, _) in ROUTES.items():           # nav links live in BOTH the server-rendered
             tgt = base + slug                         # markup and the __NEXT_DATA__ hydration
             t = t.replace(f'href="{r}"', f'href="{tgt}"')      # payload; rewrite both together
             t = t.replace(f'"path":"{r}"', f'"path":"{tgt}"')  # so hydration does not mismatch
@@ -114,10 +178,16 @@ def build(out, base=''):
         p = os.path.join(out, dst)
         os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, 'w', encoding='utf-8').write(t)
-    return base, patch_chunks(out, base)
+
+    for slug, target in REDIRECTS.items():
+        p = os.path.join(out, slug.strip('/'), 'index.html')
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        open(p, 'w', encoding='utf-8').write(redirect_stub(base + target, ORIGIN + base + target))
+    return base, patch_chunks(out, base, pristine)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     b, n = build(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else '')
-    print(f'built {len(PAGES)} pages into {sys.argv[1]}  base={b or "/"}  chunk-url rewrites: {n}')
+    print(f'built {len(PAGES)} pages + {len(REDIRECTS)} redirects into {sys.argv[1]}  '
+          f'base={b or "/"}  chunk-url rewrites: {n}')
