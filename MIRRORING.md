@@ -88,7 +88,11 @@ Google), stages everything, and only then replaces `_next/`, `assets/`,
 `.mirror-base` is reset to the new pristine Gamma prefix.
 
 Asset filenames are derived from their source URL, so an unchanged asset lands
-on the same name and shows up as no diff.
+on the same name and shows up as no diff. One exception is not worth chasing:
+Cloudflare obfuscates the contact address with a key that rotates per response,
+so `src/pages/index.html` shows a one-line diff after every harvest even when
+nothing changed. `build.py` decodes the address, so the published page is
+unaffected — and `--check` compares visible text, so it is not fooled either.
 
 ## 4. Regenerate
 

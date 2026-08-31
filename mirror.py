@@ -41,6 +41,18 @@ def md5(s, n=16):
     return hashlib.md5(s.encode()).hexdigest()[:n]
 
 
+def named(name, default='.png'):
+    """A CDN filename with Gamma's `<source ext>@<delivered ext>` suffix resolved.
+
+    imgproxy names a PNG it delivers as JPEG `image.png@jpg`. Taken literally
+    that leaves a JPEG on a path no static host has a MIME type for, so the
+    browser is handed application/octet-stream and has to sniff its way out.
+    """
+    stem, ext = os.path.splitext(name)
+    head, at, fmt = ext.partition('@')
+    return stem + (('.' + fmt) if at else (head or default))
+
+
 def fetch(url, tries=3):
     last = None
     for i in range(tries):
@@ -80,15 +92,15 @@ def local_path(url):
         return f'/assets/screenshots/{md5(url)}.png'
     if host == 'imgproxy.gamma.app':                # resize proxy wrapping a cdn.gamma.app URL
         inner = url.split('/https://', 1)[-1]
-        return f'/assets/img/proxy-{md5(url)}{os.path.splitext(inner)[1] or ".png"}'
+        return f'/assets/img/proxy-{md5(url)}{os.path.splitext(named(inner))[1]}'
     if host == 'cdn.gamma.app':
         if seg[0] == 'theme_images':                # theme_images/<theme>/<file>
-            return '/assets/img/theme_images-' + seg[-1]
+            return '/assets/img/theme_images-' + named(seg[-1])
         if len(seg) >= 3 and seg[1] == 'generated-images':
-            return f'/assets/img/{seg[0]}-{seg[-1]}'
+            return f'/assets/img/{seg[0]}-{named(seg[-1])}'
         if len(seg) == 4:                           # <doc>/<hash>/<original|optimized>/<name>
-            return f'/assets/img/{seg[1][:16]}-{seg[3]}'
-        return f'/assets/img/{md5(url)}-{seg[-1]}'
+            return f'/assets/img/{seg[1][:16]}-{named(seg[3])}'
+        return f'/assets/img/{md5(url)}-{named(seg[-1])}'
     if host == 'iconscdn.pictographic.ai':          # ?stroke=45 selects a variant of the same id
         stem, ext = os.path.splitext(seg[-1])
         return f'/assets/icons/{stem}-{md5(p.query, 6)}{ext}' if p.query else f'/assets/icons/{stem}{ext}'
@@ -96,8 +108,8 @@ def local_path(url):
         return f'/assets/fonts/{md5(url)}.css'
     if host == 'fonts.gstatic.com':
         return f'/assets/fonts/{md5(url)}{os.path.splitext(path)[1]}'
-    if path.lower().endswith(IMG_EXTS):             # link-card favicon or thumbnail
-        return f'/assets/img/ext-{md5(url)}{os.path.splitext(path)[1].lower()}'
+    if os.path.splitext(named(path, ''))[1].lower() in IMG_EXTS:   # link-card favicon or thumbnail
+        return f'/assets/img/ext-{md5(url)}{os.path.splitext(named(path))[1].lower()}'
     return None
 
 
