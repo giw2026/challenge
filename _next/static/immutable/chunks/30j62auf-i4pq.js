@@ -1,0 +1,23 @@
+__turbopack_load_page_chunks__("/published_mobile/[docId]", [
+  "static/immutable/chunks/1wzfht17bgvsu.js",
+  "static/immutable/chunks/2fot0g68jqf8b.js",
+  "static/immutable/chunks/17jhkia-5ny09.js",
+  "static/immutable/chunks/3xm_1z8d06-um.js",
+  "static/immutable/chunks/1ad4jp47vc8md.js",
+  "static/immutable/chunks/3p8xcmix7x-pi.js",
+  "static/immutable/chunks/110de1zwtl2_c.js",
+  "static/immutable/chunks/1kdyqhmcqd3el.js",
+  "static/immutable/chunks/1jc59x06z-qgq.js",
+  "static/immutable/chunks/0htwmhcxjrq29.js",
+  "static/immutable/chunks/19zqprgvvq_xn.js",
+  "static/immutable/chunks/3_fuabilj5tcj.js",
+  "static/immutable/chunks/1r0sr0d71btni.js",
+  "static/immutable/chunks/23k3o-xestyn5.js",
+  "static/immutable/chunks/0zk86wbeu21di.js",
+  "static/immutable/chunks/1abto1igxlddr.js",
+  "static/immutable/chunks/44zqlcr9b6c2s.js",
+  "static/immutable/chunks/0cu-3ok-8aaz0.css",
+  "static/immutable/chunks/3mc1kjo1cpu-v.css",
+  "static/immutable/chunks/20_c345l6voa0.css",
+  "static/immutable/chunks/turbopack-1v2yc76ivpmgg.js"
+])
