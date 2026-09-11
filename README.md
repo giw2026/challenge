@@ -13,6 +13,7 @@ Source site: <https://untitled-w5qr52y.gamma.site/> (Gamma)
 | `/challenge/rationale/` | 추진 배경 |
 | `/challenge/overview/` | 대회 소개 |
 | `/challenge/data/` | 데이터 · 일정 |
+| `/challenge/faq/` | FAQ |
 | `/challenge/apply/` | redirect to `/challenge/` (page removed upstream 2026-08-31) |
 
 ## Layout

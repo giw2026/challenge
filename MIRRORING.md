@@ -117,7 +117,7 @@ stubs land on a page that exists, and that the Turbopack runtime carries the
 right chunk base.
 
 **This is not sufficient**, because the failures that matter do not show up in
-the files. Two of them:
+the files. Three of them:
 
 - The page never hydrates. Every asset returns 200, nothing errors, and the
   page reads as blank.
@@ -127,6 +127,16 @@ the files. Two of them:
   throw is swallowed, and the icon renders as an empty box -- no request, no
   console error, nothing in the served HTML to look at. `build.ABSOLUTE` lists
   the asset prefixes that must therefore carry the origin.
+- A URL the runtime assembles in JavaScript points somewhere that does not
+  exist. Gamma resizes images by wrapping the src in an `imgproxy.gamma.app`
+  URL, and a mirrored src is root-relative, so imgproxy resolves it against
+  its own host and answers 502. The served HTML holds only the clean local
+  path, so nothing in the files hints at it, and the visible image survives
+  because the unproxied src is also in the srcset -- only a wider viewport or
+  a denser display would actually break. `build.IMGPROXY_RE` patches the
+  wrapper to pass root-relative srcs through. Watch the `third-party:` column:
+  anything beyond `cdn.iframe.ly` is a URL the runtime built that should have
+  stayed local.
 
 ```sh
 python3 browsercheck.py . /challenge
@@ -145,8 +155,9 @@ browser available, check by hand instead: `document.body.className` should be
 50 KB rather than ~230 KB, and `/challenge/apply/` should bounce to the home page.
 
 One request is expected to stay third-party: `cdn.iframe.ly/embed.js`, which
-Gamma loads for link-card embeds on the source site too. `/favicon.ico` 404s on
-both sites; Gamma does not ship one.
+Gamma loads for link-card embeds on the source site too, and it is the only
+host that belongs in the `third-party:` column. `/favicon.ico` 404s on both
+sites; Gamma does not ship one.
 
 ## 6. Deploy
 

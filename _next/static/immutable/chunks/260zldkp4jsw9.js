@@ -1,0 +1,23 @@
+__turbopack_load_page_chunks__("/published/[docId]", [
+  "static/immutable/chunks/2ad2eujs89v5e.js",
+  "static/immutable/chunks/2fot0g68jqf8b.js",
+  "static/immutable/chunks/17jhkia-5ny09.js",
+  "static/immutable/chunks/267k5kzz-7twy.js",
+  "static/immutable/chunks/1ad4jp47vc8md.js",
+  "static/immutable/chunks/3p8xcmix7x-pi.js",
+  "static/immutable/chunks/110de1zwtl2_c.js",
+  "static/immutable/chunks/1kdyqhmcqd3el.js",
+  "static/immutable/chunks/3u2c5hf6fo5ph.js",
+  "static/immutable/chunks/0htwmhcxjrq29.js",
+  "static/immutable/chunks/2lq36sf5_o5kr.js",
+  "static/immutable/chunks/0_f-e9u_6m4g-.js",
+  "static/immutable/chunks/1r0sr0d71btni.js",
+  "static/immutable/chunks/23k3o-xestyn5.js",
+  "static/immutable/chunks/3hve4gyxuhv_1.js",
+  "static/immutable/chunks/1-s2zqjorh-el.js",
+  "static/immutable/chunks/44zqlcr9b6c2s.js",
+  "static/immutable/chunks/0cu-3ok-8aaz0.css",
+  "static/immutable/chunks/3mc1kjo1cpu-v.css",
+  "static/immutable/chunks/1otfloeaa5tmb.css",
+  "static/immutable/chunks/turbopack-39q74omvigrmm.js"
+])

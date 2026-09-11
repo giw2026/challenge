@@ -30,7 +30,8 @@ JSON_AMP = chr(92) + 'u0026'   # how '&' is spelled inside __NEXT_DATA__
 ROUTES = {'/':           ('/',           'index.html'),
           '/추진-배경':    ('/rationale/', 'rationale.html'),
           '/대회-소개':    ('/overview/',  'overview.html'),
-          '/데이터-일정':  ('/data/',      'data.html')}
+          '/데이터-일정':  ('/data/',      'data.html'),
+          '/faq':         ('/faq/',       'faq.html')}
 # Slugs the source site no longer serves. `/참가-안내` was a duplicate of the
 # home page's lower half and was deleted upstream on 2026-08-31; its slug stays
 # as a redirect stub so links already printed, emailed or QR-coded keep working.
@@ -43,6 +44,22 @@ REDIRECTS = {'/apply/': '/'}
 # Verified in Chromium -- an absolute URL restores the icons, a query string
 # makes no difference.
 ABSOLUTE = ('/assets/icons/',)
+# Gamma resizes images at runtime by wrapping the src in an imgproxy URL:
+#     if (no resize params || src already starts with IMAGE_WORKER_HOST) return src
+#     return `${IMAGE_WORKER_HOST}/resize/${params}/${src}`
+# Mirrored images are root-relative, so neither early return fires and the
+# runtime asks imgproxy.gamma.app to fetch `/challenge/assets/...`, which it
+# resolves against its own host and answers 502. Nothing in the served HTML
+# shows this -- the URL is assembled in JS -- and the visible image survives
+# because the unproxied src is also in the srcset, so only a wider viewport or
+# a denser display would actually break. Passing root-relative srcs straight
+# through restores upstream behaviour for them and leaves genuinely remote URLs
+# proxied as before. The identifiers are minified and get renamed on every
+# Gamma redeploy, so match them structurally rather than by name.
+IMGPROXY_RE = re.compile(
+    rb'([\w.]+)\.IMAGE_WORKER_HOST&&(\w+)\.startsWith\(\1\.IMAGE_WORKER_HOST\)\)return \2')
+NOPROXY = rb'\2.startsWith("/")/*mirror:noproxy*/||\1.IMAGE_WORKER_HOST' \
+          rb'&&\2.startsWith(\1.IMAGE_WORKER_HOST))return \2'
 # Source file in src/pages/ -> published path
 PAGES = {src: (slug.strip('/') + '/index.html' if slug != '/' else 'index.html')
          for slug, src in ROUTES.values()}
@@ -134,8 +151,20 @@ def patch_chunks(out, base, pristine, mapping):
                     swept += d.count(u)
                     d = d.replace(u, p)
             if d != d0: open(path, 'wb').write(d)
+    # stop the runtime from routing mirrored images through imgproxy (see IMGPROXY_RE)
+    noproxy = 0
+    for dp, _, fs in os.walk(os.path.join(out, '_next')):
+        for fn in fs:
+            if not fn.endswith('.js'): continue
+            path = os.path.join(dp, fn)
+            d = open(path, 'rb').read()
+            if b'IMAGE_WORKER_HOST' not in d or b'mirror:noproxy' in d: continue
+            d, k = IMGPROXY_RE.subn(NOPROXY, d)
+            if k:
+                noproxy += k
+                open(path, 'wb').write(d)
     open(marker, 'w', encoding='utf-8').write(base + '\n')
-    return n, swept
+    return n, swept, noproxy
 
 
 def redirect_stub(target, canonical):
@@ -218,6 +247,7 @@ def build(out, base=''):
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(__doc__)
-    b, (n, swept) = build(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else '')
+    b, (n, swept, noproxy) = build(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else '')
     print(f'built {len(PAGES)} pages + {len(REDIRECTS)} redirects into {sys.argv[1]}  '
-          f'base={b or "/"}  chunk-url rewrites: {n}  asset URLs swept from bundles: {swept}')
+          f'base={b or "/"}  chunk-url rewrites: {n}  asset URLs swept from bundles: {swept}  '
+          f'imgproxy guards: {noproxy}')
